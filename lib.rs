@@ -3,7 +3,6 @@
 #[ink::contract]
 mod test1 {
     use ink::{prelude::string::String, env::call,prelude::vec::Vec};
-    use chrono::Date;
 
     /// Defines the storage of your contract.
     /// Add new fields to the below struct in order
@@ -86,7 +85,7 @@ mod test1 {
         pub fn sendmessage(&mut self,to:AccountId,message : ink::prelude::string::String)  {
             
             let caller = self.env().caller();
-            self.contents.push(Content { content: message, to: to, from:caller, dataid: 0, timestump:  });
+            self.contents.push(Content { content: message.clone(), to, from:caller, dataid: 0, timestump:0,  });
             self.env().emit_event(TransferSingle{
                 operator: caller,
                 from:caller,
@@ -97,8 +96,7 @@ mod test1 {
         
         ///
         #[ink(message)]
-        pub fn getmessage(&self) {
-            ink::env::debug_println!("[INFO]getmessage");
+        pub fn getmessage(&self) -> ink::prelude::string::String{
             let caller = self.env().caller();
             let mut latestcontent:Option<&Content> = None; 
             //最新のみ参照する。
@@ -114,7 +112,11 @@ mod test1 {
                 from:caller,
                 to: latestcontent.unwrap().to,
                 content: latestcontent.unwrap().clone().content
-            })
+            });
+            
+            let result = latestcontent.unwrap().content.clone();
+            ink::env::debug_println!("[INFO]result:{:?}",result);
+            result
             
         }
     }
@@ -124,7 +126,8 @@ mod test1 {
     /// The below code is technically just normal Rust code.
     #[cfg(test)]
     mod tests {
-        use chrono::DateTime;
+
+        use ink::env::Environment;
 
         /// Imports all the definitions from the outer scope so we can use them here.
         use super::*;
@@ -146,6 +149,22 @@ mod test1 {
         }
         
         #[ink::test]
+        fn messagetest() {
+            let mut contract = init_contract();
+            let caller:AccountId = AccountId::from([0u8;32]);
+            let to:AccountId = AccountId::from([1u8;32]);
+            dbg!(&to);
+            contract.sendmessage(to, "test".to_owned());
+            let ret = contract.getmessage();
+            dbg!(&ret);
+            assert_eq!("test",ret.as_str());
+        }
+        
+        fn init_contract()   -> Test1 {
+            let mut contract = Test1::new(false);
+            contract
+        }
+        /*#[ink::test]
         fn chronotest(){
             use chrono::{DateTime, Local};
             
@@ -153,7 +172,7 @@ mod test1 {
             let ts: i64 = time.timestamp();
 
             println!("{}", ts);           
-        }
+        }*/
     }
 
 

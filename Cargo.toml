@@ -5,7 +5,6 @@ authors = ["[your_name] <[your_email]>"]
 edition = "2021"
 
 [dependencies]
-chrono = "0.4.31"
 ink = { version = "4.2.0", default-features = false }
 
 scale = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive"] }
