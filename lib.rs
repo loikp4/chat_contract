@@ -2,15 +2,26 @@
 
 #[ink::contract]
 mod test1 {
+    use ink::env::hash::Blake2x128;
     use ink::{prelude::string::String, env::call,prelude::vec::Vec};
+    use ink::storage::Mapping;
 
+    type Owner = AccountId;
+    type Operator = AccountId;
     /// Defines the storage of your contract.
     /// Add new fields to the below struct in order
     /// to add new static storage fields to your contract.
     #[ink(storage)]
-    pub struct Test1 {
+    #[derive(Default)]
+    pub struct Contract {
         value: bool,
-        contents: Vec<Content>
+        contents: Vec<Content>,
+        /// Which accounts (called operators) have been approved to spend funds on behalf
+        /// of an owner. 未実装
+        approvals: Mapping<(Owner, Operator), ()>,
+        //mapping ofrom owner to number of owned token.
+        balance :Mapping<AccountId,Balance>
+
     }
     
     #[derive(Debug,Clone,scale::Encode,scale::Decode)]
@@ -52,20 +63,17 @@ mod test1 {
         content : ink::prelude::string::String,
     }
 
-    impl Test1 {
+    enum Error {
+        Messagenotexists,
+    }
+
+    impl Contract {
         /// Constructor that initializes the `bool` value to the given `init_value`.
         #[ink(constructor)]
-        pub fn new(init_value: bool) -> Self {
-            Self { value: init_value, contents:Vec::new()}
+        pub fn new() -> Self {
+            Default::default()
         }
 
-        /// Constructor that initializes the `bool` value to `false`.
-        ///
-        /// Constructors can delegate to other constructors.
-        #[ink(constructor)]
-        pub fn default() -> Self {
-            Self::new(Default::default())
-        }
 
         /// A message that can be called on instantiated contracts.
         /// This one flips the value of the stored `bool` from `true`
@@ -96,7 +104,7 @@ mod test1 {
         
         ///
         #[ink(message)]
-        pub fn getmessage(&self) -> ink::prelude::string::String{
+        pub fn getmessage(&self) -> Option<ink::prelude::string::String>{
             let caller = self.env().caller();
             let mut latestcontent:Option<&Content> = None; 
             //最新のみ参照する。
@@ -106,6 +114,9 @@ mod test1 {
                 }
                 latestcontent = Some(i);
             };
+            if latestcontent.is_none(){
+                return  None;
+            }
 
             self.env().emit_event(Getcontent{
                 operator: caller,
@@ -114,10 +125,9 @@ mod test1 {
                 content: latestcontent.unwrap().clone().content
             });
             
-            let result = latestcontent.unwrap().content.clone();
+            let result = latestcontent.and_then(|f|{ Some(f.content.clone())});
             ink::env::debug_println!("[INFO]result:{:?}",result);
             result
-            
         }
     }
 
@@ -135,14 +145,14 @@ mod test1 {
         /// We test if the default constructor does its job.
         #[ink::test]
         fn default_works() {
-            let test1 = Test1::default();
+            let test1 = Contract::default();
             assert_eq!(test1.get(), false);
         }
 
         /// We test a simple use case of our contract.
         #[ink::test]
         fn it_works() {
-            let mut test1 = Test1::new(false);
+            let mut test1 = Contract::new();
             assert_eq!(test1.get(), false);
             test1.flip();
             assert_eq!(test1.get(), true);
@@ -160,19 +170,11 @@ mod test1 {
             assert_eq!("test",ret.as_str());
         }
         
-        fn init_contract()   -> Test1 {
-            let mut contract = Test1::new(false);
+        fn init_contract()   -> Contract {
+            let mut contract = Contract::new();
             contract
         }
-        /*#[ink::test]
-        fn chronotest(){
-            use chrono::{DateTime, Local};
-            
-            let time = Local::now();
-            let ts: i64 = time.timestamp();
 
-            println!("{}", ts);           
-        }*/
     }
 
 
